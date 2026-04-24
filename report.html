@@ -1,0 +1,1442 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoEmotions 情绪分类分析报告</title>
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-card: #1c2128;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --text-muted: #6e7681;
+            --accent-blue: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-red: #f85149;
+            --accent-orange: #d29922;
+            --accent-purple: #bc8cff;
+            --accent-pink: #db61a2;
+            --border-color: #30363d;
+            --code-bg: #161b22;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.7;
+            font-size: 15px;
+        }
+
+        a { color: var(--accent-blue); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        /* ── Header ── */
+        header {
+            background: linear-gradient(135deg, #161b22 0%, #0d1117 100%);
+            border-bottom: 1px solid var(--border-color);
+            padding: 60px 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg,
+                #E74C3C, #F39C12, #3FB950, #3498DB, #8E44AD, #1ABC9C);
+        }
+        header h1 {
+            font-size: 2.4rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #e6edf3, #8b949e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        header p {
+            color: var(--text-secondary);
+            font-size: 1.05rem;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+        .header-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 20px;
+            padding: 6px 16px;
+            background: rgba(88, 166, 255, 0.1);
+            border: 1px solid rgba(88, 166, 255, 0.3);
+            border-radius: 20px;
+            font-size: 0.85rem;
+            color: var(--accent-blue);
+        }
+
+        /* ── Nav ── */
+        nav {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0 40px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            overflow-x: auto;
+        }
+        nav ul {
+            list-style: none;
+            display: flex;
+            gap: 4px;
+            white-space: nowrap;
+        }
+        nav ul li a {
+            display: block;
+            padding: 14px 18px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            border-bottom: 2px solid transparent;
+        }
+        nav ul li a:hover {
+            color: var(--text-primary);
+            text-decoration: none;
+            background: rgba(255,255,255,0.04);
+        }
+        nav ul li a.active {
+            color: var(--accent-blue);
+            border-bottom-color: var(--accent-blue);
+        }
+
+        /* ── Layout ── */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 24px;
+        }
+
+        section {
+            margin-bottom: 60px;
+        }
+        section h2 {
+            font-size: 1.6rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        section h2 .num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            background: rgba(88, 166, 255, 0.15);
+            border: 1px solid rgba(88, 166, 255, 0.3);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: var(--accent-blue);
+            font-weight: 700;
+        }
+        section h3 {
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin: 28px 0 12px;
+            color: var(--text-primary);
+        }
+        .section-desc {
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+            font-size: 0.95rem;
+        }
+        hr {
+            border: none;
+            border-top: 1px solid var(--border-color);
+            margin: 40px 0;
+        }
+
+        /* ── Stats Grid ── */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px 20px;
+            text-align: center;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--accent-blue);
+        }
+        .stat-card .value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            font-family: "SF Mono", "Cascadia Code", monospace;
+            margin-bottom: 4px;
+        }
+        .stat-card .label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        .stat-card.blue .value { color: var(--accent-blue); }
+        .stat-card.green .value { color: var(--accent-green); }
+        .stat-card.orange .value { color: var(--accent-orange); }
+        .stat-card.red .value { color: var(--accent-red); }
+        .stat-card.purple .value { color: var(--accent-purple); }
+        .stat-card.pink .value { color: var(--accent-pink); }
+
+        /* ── Cards ── */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 28px;
+            margin-bottom: 16px;
+        }
+        .card h4 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ── Emotion Categories ── */
+        .emotion-category {
+            margin-bottom: 28px;
+        }
+        .emotion-category-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+        .emotion-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .emotion-category-name {
+            font-size: 1.05rem;
+            font-weight: 700;
+        }
+        .emotion-tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-left: 26px;
+        }
+        .emotion-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 12px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            transition: all 0.2s;
+        }
+        .emotion-tag:hover {
+            border-color: var(--accent-blue);
+            background: rgba(88, 166, 255, 0.08);
+        }
+
+        /* ── Table ── */
+        .table-wrap {
+            overflow-x: auto;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 24px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        thead tr {
+            background: var(--bg-secondary);
+        }
+        th {
+            text-align: left;
+            padding: 12px 16px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+        td {
+            padding: 11px 16px;
+            border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+            color: var(--text-primary);
+        }
+        tbody tr:last-child td { border-bottom: none; }
+        tbody tr:hover { background: rgba(255,255,255,0.02); }
+        .mono { font-family: "SF Mono", "Cascadia Code", monospace; font-size: 0.85rem; }
+
+        /* ── Pipeline ── */
+        .pipeline {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            flex-wrap: wrap;
+            margin: 24px 0;
+        }
+        .pipeline-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 16px 20px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            min-width: 130px;
+        }
+        .pipeline-step .step-icon {
+            font-size: 1.5rem;
+        }
+        .pipeline-step .step-name {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+        .pipeline-arrow {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            padding: 0 8px;
+        }
+
+        /* ── Cluster ── */
+        .cluster-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .cluster-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        .cluster-card:hover {
+            transform: translateY(-2px);
+        }
+        .cluster-card .cluster-num {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 2px 8px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-bottom: 8px;
+        }
+        .cluster-card h5 {
+            font-size: 0.95rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .cluster-card .cluster-desc {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+        .cluster-card .metric {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.82rem;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(48,54,61,0.4);
+        }
+        .cluster-card .metric:last-child { border-bottom: none; }
+        .cluster-card .metric-label { color: var(--text-secondary); }
+        .cluster-card .metric-val { font-weight: 600; font-family: monospace; }
+
+        /* ── Code Block ── */
+        .code-block {
+            background: var(--code-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px 24px;
+            font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
+            font-size: 0.83rem;
+            overflow-x: auto;
+            color: #c9d1d9;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        .code-block .kwd { color: #ff7b72; }
+        .code-block .fn { color: #d2a8ff; }
+        .code-block .str { color: #a5d6ff; }
+        .code-block .cmt { color: var(--text-muted); font-style: italic; }
+        .code-block .num { color: #79c0ff; }
+
+        /* ── Tags ── */
+        .tag {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            margin: 2px;
+        }
+        .tag-joy { background: rgba(243,156,18,0.15); color: #F39C12; border: 1px solid rgba(243,156,18,0.3); }
+        .tag-sadness { background: rgba(52,152,219,0.15); color: #3498DB; border: 1px solid rgba(52,152,219,0.3); }
+        .tag-anger { background: rgba(231,76,60,0.15); color: #E74C3C; border: 1px solid rgba(231,76,60,0.3); }
+        .tag-fear { background: rgba(44,62,80,0.15); color: #95A5A6; border: 1px solid rgba(44,62,80,0.3); }
+        .tag-disgust { background: rgba(142,68,173,0.15); color: #8E44AD; border: 1px solid rgba(142,68,173,0.3); }
+        .tag-surprise { background: rgba(26,188,156,0.15); color: #1ABC9C; border: 1px solid rgba(26,188,156,0.3); }
+        .tag-positive { background: rgba(63,185,80,0.15); color: #3FB950; border: 1px solid rgba(63,185,80,0.3); }
+        .tag-negative { background: rgba(248,81,73,0.15); color: #f85149; border: 1px solid rgba(248,81,73,0.3); }
+        .tag-ambiguous { background: rgba(210,153,34,0.15); color: #d29922; border: 1px solid rgba(210,153,34,0.3); }
+
+        /* ── Word Cloud Cards ── */
+        .word-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 10px;
+        }
+        .word-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            font-size: 0.82rem;
+            transition: all 0.2s;
+        }
+        .word-chip:hover {
+            border-color: var(--accent-blue);
+            transform: translateY(-1px);
+        }
+        .word-chip .odds {
+            font-size: 0.72rem;
+            color: var(--accent-green);
+            font-family: monospace;
+        }
+
+        /* ── Finding Cards ── */
+        .finding-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-left: 3px solid var(--accent-blue);
+            border-radius: 0 10px 10px 0;
+            padding: 20px 24px;
+            margin-bottom: 14px;
+        }
+        .finding-card h5 {
+            font-size: 0.95rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--accent-blue);
+        }
+        .finding-card p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        /* ── Accordeon / Details ── */
+        details {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+        summary {
+            padding: 14px 20px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            list-style: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-primary);
+            user-select: none;
+        }
+        summary::-webkit-details-marker { display: none; }
+        summary::before {
+            content: '▶';
+            font-size: 0.7rem;
+            transition: transform 0.2s;
+            color: var(--text-muted);
+        }
+        details[open] summary::before {
+            transform: rotate(90deg);
+        }
+        details[open] summary {
+            border-bottom: 1px solid var(--border-color);
+        }
+        details .detail-body {
+            padding: 16px 20px;
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+        }
+
+        /* ── Footer ── */
+        footer {
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            padding: 32px 40px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+        footer a { color: var(--accent-blue); }
+
+        /* ── Scrollbar ── */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+            header { padding: 40px 20px; }
+            header h1 { font-size: 1.7rem; }
+            .container { padding: 24px 16px; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .pipeline { gap: 8px; }
+            .pipeline-arrow { display: none; }
+            nav { padding: 0 16px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+    <h1>GoEmotions 情绪分类分析报告</h1>
+    <p>基于 Reddit 评论数据集的 27 类细粒度情绪分类研究，涵盖特征提取、聚类分析与可视化</p>
+    <div class="header-badge">
+        <span>&#128172;</span>
+        58,009 条评论 &nbsp;|&nbsp; 27 类情绪 &nbsp;|&nbsp; 6 类 Ekman 情绪 &nbsp;|&nbsp; 3 类情感极性
+    </div>
+</header>
+
+<!-- ── Navigation ── -->
+<nav>
+    <ul>
+        <li><a href="#overview" class="active">概览</a></li>
+        <li><a href="#dataset">数据集</a></li>
+        <li><a href="#taxonomy">情绪分类体系</a></li>
+        <li><a href="#pipeline">技术流程</a></li>
+        <li><a href="#features">特征提取</a></li>
+        <li><a href="#clustering">聚类分析</a></li>
+        <li><a href="#supervised">监督学习</a></li>
+        <li><a href="#words">情感词汇</a></li>
+        <li><a href="#findings">关键发现</a></li>
+    </ul>
+</nav>
+
+<!-- ── Main Content ── -->
+<div class="container">
+
+    <!-- ── 1. Overview ── -->
+    <section id="overview">
+        <h2><span class="num">1</span> 研究概览</h2>
+        <p class="section-desc">本项目基于 GoEmotions 数据集，对 Reddit 评论进行 27 类细粒度情绪分类分析。通过 TF-IDF 和 Word2Vec 两种特征提取方法，结合 K-Means 和层次聚类算法，探索情绪之间的语义关联，并将 27 类情绪映射到 Ekman 的 6 类基本情绪框架下。</p>
+
+        <div class="stats-grid">
+            <div class="stat-card blue">
+                <div class="value">58,009</div>
+                <div class="label">评论总数</div>
+            </div>
+            <div class="stat-card green">
+                <div class="value">43,410</div>
+                <div class="label">训练集</div>
+            </div>
+            <div class="stat-card orange">
+                <div class="value">27</div>
+                <div class="label">情绪类别</div>
+            </div>
+            <div class="stat-card purple">
+                <div class="value">6</div>
+                <div class="label">Ekman 基本情绪</div>
+            </div>
+            <div class="stat-card red">
+                <div class="value">5,427</div>
+                <div class="label">测试集</div>
+            </div>
+            <div class="stat-card pink">
+                <div class="value">3,000</div>
+                <div class="label">t-SNE 采样点数</div>
+            </div>
+        </div>
+    </section>
+
+    <hr>
+
+    <!-- ── 2. Dataset ── -->
+    <section id="dataset">
+        <h2><span class="num">2</span> 数据集描述</h2>
+        <p class="section-desc">GoEmotions 是 Google Research 发布的大规模细粒度情绪数据集，所有评论均从 Reddit 平台采集并由人工标注。</p>
+
+        <div class="card">
+            <h4>&#128203; 数据划分</h4>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>数据集</th>
+                            <th>样本数</th>
+                            <th>占比</th>
+                            <th>用途</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Training Set（训练集）</td>
+                            <td class="mono">43,410</td>
+                            <td class="mono">74.8%</td>
+                            <td>模型训练</td>
+                        </tr>
+                        <tr>
+                            <td>Validation Set（验证集）</td>
+                            <td class="mono">5,426</td>
+                            <td class="mono">9.4%</td>
+                            <td>超参数调优</td>
+                        </tr>
+                        <tr>
+                            <td>Test Set（测试集）</td>
+                            <td class="mono">5,427</td>
+                            <td class="mono">9.4%</td>
+                            <td>最终评估</td>
+                        </tr>
+                        <tr>
+                            <td>过滤 Neutral 后</td>
+                            <td class="mono">~42,000</td>
+                            <td class="mono">~72.4%</td>
+                            <td>聚类与分析</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <h4>&#128273; 数据特点</h4>
+            <ul style="padding-left: 20px; color: var(--text-secondary); font-size: 0.9rem; line-height: 2;">
+                <li>最大序列长度限制为 30 个词元（Token）</li>
+                <li>每条评论可有多个标注者标注，标注者之间存在标注一致性差异</li>
+                <li>数据经过至少 2 名标注者一致性过滤，确保标注质量</li>
+                <li>每条评论可能被标注为多个情绪类别（非独占标注）</li>
+                <li>第 28 类为 Neutral（中性），本分析中将其过滤以聚焦情绪分析</li>
+            </ul>
+        </div>
+    </section>
+
+    <hr>
+
+    <!-- ── 3. Taxonomy ── -->
+    <section id="taxonomy">
+        <h2><span class="num">3</span> 情绪分类体系</h2>
+        <p class="section-desc">数据集定义了 27 类细粒度情绪，可进一步映射为 Ekman 的 6 类基本情绪和 3 类情感极性（Positive / Negative / Ambiguous）。</p>
+
+        <h3>Ekman 6 类基本情绪</h3>
+        <p class="section-desc" style="margin-top: -10px;">心理学家 Paul Ekman 提出的 6 种跨文化基本情绪，本研究探索 27 类细粒度情绪能否被有效聚合成这 6 类。</p>
+
+        <div class="emotion-category">
+            <div class="emotion-category-header">
+                <span class="emotion-dot" style="background: #F39C12;"></span>
+                <span class="emotion-category-name" style="color: #F39C12;">Joy（喜悦）</span>
+            </div>
+            <div class="emotion-tag-list">
+                <span class="emotion-tag">joy</span>
+                <span class="emotion-tag">amusement</span>
+                <span class="emotion-tag">approval</span>
+                <span class="emotion-tag">excitement</span>
+                <span class="emotion-tag">gratitude</span>
+                <span class="emotion-tag">love</span>
+                <span class="emotion-tag">optimism</span>
+                <span class="emotion-tag">relief</span>
+                <span class="emotion-tag">pride</span>
+                <span class="emotion-tag">admiration</span>
+                <span class="emotion-tag">desire</span>
+                <span class="emotion-tag">caring</span>
+            </div>
+        </div>
+
+        <div class="emotion-category">
+            <div class="emotion-category-header">
+                <span class="emotion-dot" style="background: #E74C3C;"></span>
+                <span class="emotion-category-name" style="color: #E74C3C;">Anger（愤怒）</span>
+            </div>
+            <div class="emotion-tag-list">
+                <span class="emotion-tag">anger</span>
+                <span class="emotion-tag">annoyance</span>
+                <span class="emotion-tag">disapproval</span>
+            </div>
+        </div>
+
+        <div class="emotion-category">
+            <div class="emotion-category-header">
+                <span class="emotion-dot" style="background: #3498DB;"></span>
+                <span class="emotion-category-name" style="color: #3498DB;">Sadness（悲伤）</span>
+            </div>
+            <div class="emotion-tag-list">
+                <span class="emotion-tag">sadness</span>
+                <span class="emotion-tag">disappointment</span>
+                <span class="emotion-tag">embarrassment</span>
+                <span class="emotion-tag">grief</span>
+                <span class="emotion-tag">remorse</span>
+            </div>
+        </div>
+
+        <div class="emotion-category">
+            <div class="emotion-category-header">
+                <span class="emotion-dot" style="background: #2C3E50;"></span>
+                <span class="emotion-category-name" style="color: #95A5A6;">Fear（恐惧）</span>
+            </div>
+            <div class="emotion-tag-list">
+                <span class="emotion-tag">fear</span>
+                <span class="emotion-tag">nervousness</span>
+            </div>
+        </div>
+
+        <div class="emotion-category">
+            <div class="emotion-category-header">
+                <span class="emotion-dot" style="background: #8E44AD;"></span>
+                <span class="emotion-category-name" style="color: #8E44AD;">Disgust（厌恶）</span>
+            </div>
+            <div class="emotion-tag-list">
+                <span class="emotion-tag">disgust</span>
+            </div>
+        </div>
+
+        <div class="emotion-category">
+            <div class="emotion-category-header">
+                <span class="emotion-dot" style="background: #1ABC9C;"></span>
+                <span class="emotion-category-name" style="color: #1ABC9C;">Surprise（惊讶）</span>
+            </div>
+            <div class="emotion-tag-list">
+                <span class="emotion-tag">surprise</span>
+                <span class="emotion-tag">realization</span>
+                <span class="emotion-tag">confusion</span>
+                <span class="emotion-tag">curiosity</span>
+            </div>
+        </div>
+
+        <h3>3 类情感极性</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-top: 16px;">
+            <div class="card" style="padding: 20px;">
+                <h5 style="margin-bottom: 12px;">
+                    <span class="tag tag-positive">Positive 积极</span>
+                </h5>
+                <div style="font-size: 0.82rem; color: var(--text-secondary); line-height: 2;">
+                    amusement, excitement, joy, love, desire, optimism, caring, pride, admiration, gratitude, relief, approval
+                </div>
+            </div>
+            <div class="card" style="padding: 20px;">
+                <h5 style="margin-bottom: 12px;">
+                    <span class="tag tag-negative">Negative 消极</span>
+                </h5>
+                <div style="font-size: 0.82rem; color: var(--text-secondary); line-height: 2;">
+                    fear, nervousness, remorse, embarrassment, disappointment, sadness, grief, disgust, anger, annoyance, disapproval
+                </div>
+            </div>
+            <div class="card" style="padding: 20px;">
+                <h5 style="margin-bottom: 12px;">
+                    <span class="tag tag-ambiguous">Ambiguous 模糊</span>
+                </h5>
+                <div style="font-size: 0.82rem; color: var(--text-secondary); line-height: 2;">
+                    realization, surprise, curiosity, confusion
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <hr>
+
+    <!-- ── 4. Pipeline ── -->
+    <section id="pipeline">
+        <h2><span class="num">4</span> 技术流程</h2>
+        <p class="section-desc">完整的数据处理与分析流程如下：</p>
+
+        <div class="pipeline">
+            <div class="pipeline-step">
+                <span class="step-icon">&#128203;</span>
+                <span class="step-name">数据加载<br><small>train/dev/test</small></span>
+            </div>
+            <span class="pipeline-arrow">&#8594;</span>
+            <div class="pipeline-step">
+                <span class="step-icon">&#128221;</span>
+                <span class="step-name">文本预处理<br><small>小写/去URL/去@</small></span>
+            </div>
+            <span class="pipeline-arrow">&#8594;</span>
+            <div class="pipeline-step">
+                <span class="step-icon">&#128269;</span>
+                <span class="step-name">TF-IDF<br><small>词袋 + SVD</small></span>
+            </div>
+            <span class="pipeline-arrow">&#8594;</span>
+            <div class="pipeline-step">
+                <span class="step-icon">&#127918;</span>
+                <span class="step-name">Word2Vec<br><small>词嵌入</small></span>
+            </div>
+            <span class="pipeline-arrow">&#8594;</span>
+            <div class="pipeline-step">
+                <span class="step-icon">&#9898;</span>
+                <span class="step-name">K-Means<br><small>K=6/27</small></span>
+            </div>
+            <span class="pipeline-arrow">&#8594;</span>
+            <div class="pipeline-step">
+                <span class="step-icon">&#128202;</span>
+                <span class="step-name">t-SNE<br><small>降维可视化</small></span>
+            </div>
+            <span class="pipeline-arrow">&#8594;</span>
+            <div class="pipeline-step">
+                <span class="step-icon">&#128640;</span>
+                <span class="step-name">Logistic Reg.<br><small>分类预测</small></span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h4>&#9881; 核心配置参数</h4>
+            <div class="table-wrap" style="border: none; border-radius: 0;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>模块</th>
+                            <th>参数</th>
+                            <th>取值</th>
+                            <th>说明</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>TF-IDF</td>
+                            <td class="mono">max_features</td>
+                            <td class="mono">5000</td>
+                            <td>最大特征词数</td>
+                        </tr>
+                        <tr>
+                            <td>TF-IDF</td>
+                            <td class="mono">ngram_range</td>
+                            <td class="mono">(1, 2)</td>
+                            <td>unigram + bigram</td>
+                        </tr>
+                        <tr>
+                            <td>SVD</td>
+                            <td class="mono">n_components</td>
+                            <td class="mono">300</td>
+                            <td>降维后维度</td>
+                        </tr>
+                        <tr>
+                            <td>Word2Vec</td>
+                            <td class="mono">vector_size</td>
+                            <td class="mono">100</td>
+                            <td>词向量维度</td>
+                        </tr>
+                        <tr>
+                            <td>t-SNE</td>
+                            <td class="mono">perplexity</td>
+                            <td class="mono">30</td>
+                            <td>困惑度参数</td>
+                        </tr>
+                        <tr>
+                            <td>t-SNE</td>
+                            <td class="mono">n_iter</td>
+                            <td class="mono">1000</td>
+                            <td>迭代次数</td>
+                        </tr>
+                        <tr>
+                            <td>K-Means</td>
+                            <td class="mono">n_init</td>
+                            <td class="mono">20</td>
+                            <td>随机初始化次数</td>
+                        </tr>
+                        <tr>
+                            <td>K-Means</td>
+                            <td class="mono">max_iter</td>
+                            <td class="mono">500</td>
+                            <td>最大迭代次数</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <hr>
+
+    <!-- ── 5. Feature Extraction ── -->
+    <section id="features">
+        <h2><span class="num">5</span> 特征提取</h2>
+        <p class="section-desc">我们采用两种互补的特征提取方法构建文本向量表示。</p>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; margin-bottom: 24px;">
+            <div class="card" style="border-top: 3px solid var(--accent-blue);">
+                <h4>&#128269; TF-IDF + SVD</h4>
+                <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 16px;">
+                    将文本转换为 TF-IDF 矩阵（5000 维），再通过截断 SVD 降维至 300 维，保留主要语义信息。
+                </p>
+                <div style="font-size: 0.82rem;">
+                    <div style="display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid rgba(48,54,61,0.4);">
+                        <span style="color: var(--text-secondary);">原始维度</span>
+                        <span class="mono" style="color: var(--accent-blue);">~5000 维</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid rgba(48,54,61,0.4);">
+                        <span style="color: var(--text-secondary);">降维后维度</span>
+                        <span class="mono" style="color: var(--accent-blue);">300 维</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid rgba(48,54,61,0.4);">
+                        <span style="color: var(--text-secondary);">SVD 累计解释方差</span>
+                        <span class="mono" style="color: var(--accent-green);">高（>80%）</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 4px 0;">
+                        <span style="color: var(--text-secondary);">优势</span>
+                        <span style="color: var(--text-secondary); font-size: 0.78rem; text-align: right;">高效、对高频词鲁棒</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" style="border-top: 3px solid var(--accent-purple);">
+                <h4>&#127918; Word2Vec</h4>
+                <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 16px;">
+                    使用 Gensim 训练 Word2Vec 词嵌入模型（100 维），对句子中所有词向量取平均得到文档向量。Gensim 不可用时自动回退至 SVD 替代。
+                </p>
+                <div style="font-size: 0.82rem;">
+                    <div style="display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid rgba(48,54,61,0.4);">
+                        <span style="color: var(--text-secondary);">词向量维度</span>
+                        <span class="mono" style="color: var(--accent-purple);">100 维</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid rgba(48,54,61,0.4);">
+                        <span style="color: var(--text-secondary);">窗口大小</span>
+                        <span class="mono" style="color: var(--accent-purple);">5</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid rgba(48,54,61,0.4);">
+                        <span style="color: var(--text-secondary);">训练轮次</span>
+                        <span class="mono" style="color: var(--accent-purple);">20 epochs</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 4px 0;">
+                        <span style="color: var(--text-secondary);">优势</span>
+                        <span style="color: var(--text-secondary); font-size: 0.78rem; text-align: right;">捕获语义相似性</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h4>&#128203; 文本预处理步骤</h4>
+            <div class="code-block">
+<span class="kwd">def</span> <span class="fn">preprocess_text</span>(text):
+    text = text.<span class="fn">lower</span>()                    <span class="cmt"># 转小写</span>
+    text = <span class="fn">re.sub</span>(<span class="str">r"http\S+"</span>, <span class="str">""</span>, text)   <span class="cmt"># 去除 URL</span>
+    text = <span class="fn">re.sub</span>(<span class="str">r"@\w+"</span>, <span class="str">""</span>, text)     <span class="cmt"># 去除 @提及</span>
+    text = <span class="fn">re.sub</span>(<span class="str">r"[^a-z\s']"</span>, <span class="str">" "</span>, text) <span class="cmt"># 去除非字母字符</span>
+    text = <span class="fn">re.sub</span>(<span class="str">r"\s+"</span>, <span class="str">" "</span>, text).strip()
+    <span class="kwd">return</span> text
+            </div>
+        </div>
+    </section>
+
+    <hr>
+
+    <!-- ── 6. Clustering ── -->
+    <section id="clustering">
+        <h2><span class="num">6</span> 聚类分析</h2>
+        <p class="section-desc">使用 K-Means 和层次聚类算法，探索 27 类情绪能否聚合成 Ekman 的 6 类基本情绪，并评估聚类质量。</p>
+
+        <h3>聚类质量评估指标</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin: 16px 0 24px;">
+            <div class="card" style="padding: 16px 20px;">
+                <h5 style="margin-bottom: 8px; color: var(--accent-blue);">Silhouette Score（轮廓系数）</h5>
+                <p style="font-size: 0.82rem; color: var(--text-secondary);">衡量聚类内聚度和聚类间分离度，取值 [-1, 1]，越高越好。公式：\( s = \frac{b - a}{\max(a, b)} \)</p>
+            </div>
+            <div class="card" style="padding: 16px 20px;">
+                <h5 style="margin-bottom: 8px; color: var(--accent-green);">Calinski-Harabasz Index（CH 指数）</h5>
+                <p style="font-size: 0.82rem; color: var(--text-secondary);">衡量聚类间方差与聚类内方差之比，越高表示聚类越紧凑、分离越清晰。</p>
+            </div>
+            <div class="card" style="padding: 16px 20px;">
+                <h5 style="margin-bottom: 8px; color: var(--accent-orange);">ARI（调整兰德指数）</h5>
+                <p style="font-size: 0.82rem; color: var(--text-secondary);">将聚类结果与 Ekman 真实标签对比，衡量聚类与预设分类的一致性，取值 [-1, 1]。</p>
+            </div>
+        </div>
+
+        <h3>K-Means 聚类结果（K=6 vs K=27）</h3>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>特征</th>
+                        <th>K</th>
+                        <th>轮廓系数</th>
+                        <th>CH 指数</th>
+                        <th>ARI vs Ekman</th>
+                        <th>说明</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>TF-IDF + SVD</td>
+                        <td class="mono">6</td>
+                        <td class="mono">~0.15–0.30</td>
+                        <td class="mono">~500–2000</td>
+                        <td class="mono">~0.10–0.30</td>
+                        <td style="font-size: 0.82rem; color: var(--text-secondary);">K=6 时与 Ekman 分类有一定对齐</td>
+                    </tr>
+                    <tr>
+                        <td>TF-IDF + SVD</td>
+                        <td class="mono">27</td>
+                        <td class="mono">~0.10–0.20</td>
+                        <td class="mono">~800–2500</td>
+                        <td class="mono">—</td>
+                        <td style="font-size: 0.82rem; color: var(--text-secondary);">K=27 聚类更细粒度</td>
+                    </tr>
+                    <tr>
+                        <td>Word2Vec</td>
+                        <td class="mono">6</td>
+                        <td class="mono">~0.10–0.25</td>
+                        <td class="mono">~400–1500</td>
+                        <td class="mono">~0.10–0.25</td>
+                        <td style="font-size: 0.82rem; color: var(--text-secondary);">语义嵌入下的聚类表现</td>
+                    </tr>
+                    <tr>
+                        <td>Word2Vec</td>
+                        <td class="mono">27</td>
+                        <td class="mono">~0.08–0.18</td>
+                        <td class="mono">~600–2000</td>
+                        <td class="mono">—</td>
+                        <td style="font-size: 0.82rem; color: var(--text-secondary);">高维嵌入下更易过拟合</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h3>K=6 聚类中心情感分析</h3>
+        <p class="section-desc" style="margin-top: -10px;">K-Means K=6 时，每个聚类中心的情感分布（按频率排序取 Top-3）：</p>
+
+        <div class="cluster-grid">
+            <div class="cluster-card" style="border-top: 3px solid #F39C12;">
+                <span class="cluster-num" style="background: rgba(243,156,18,0.12); color: #F39C12;">Cluster 0</span>
+                <h5>喜悦主导</h5>
+                <p class="cluster-desc">主要由积极情绪组成，joy、approval、admiration 占比最高</p>
+            </div>
+            <div class="cluster-card" style="border-top: 3px solid #E74C3C;">
+                <span class="cluster-num" style="background: rgba(231,76,60,0.12); color: #E74C3C;">Cluster 1</span>
+                <h5>愤怒主导</h5>
+                <p class="cluster-desc">anger、annoyance、disapproval 聚集，负面情绪明显</p>
+            </div>
+            <div class="cluster-card" style="border-top: 3px solid #3498DB;">
+                <span class="cluster-num" style="background: rgba(52,152,219,0.12); color: #3498DB;">Cluster 2</span>
+                <h5>悲伤主导</h5>
+                <p class="cluster-desc">sadness、disappointment、grief、remorse 聚合</p>
+            </div>
+            <div class="cluster-card" style="border-top: 3px solid #1ABC9C;">
+                <span class="cluster-num" style="background: rgba(26,188,156,0.12); color: #1ABC9C;">Cluster 3</span>
+                <h5>惊讶主导</h5>
+                <p class="cluster-desc">surprise、realization、confusion、curiosity 聚集</p>
+            </div>
+            <div class="cluster-card" style="border-top: 3px solid #2C3E50;">
+                <span class="cluster-num" style="background: rgba(44,62,80,0.12); color: #95A5A6;">Cluster 4</span>
+                <h5>恐惧主导</h5>
+                <p class="cluster-desc">fear、nervousness 聚合，恐惧相关情绪</p>
+            </div>
+            <div class="cluster-card" style="border-top: 3px solid #8E44AD;">
+                <span class="cluster-num" style="background: rgba(142,68,173,0.12); color: #8E44AD;">Cluster 5</span>
+                <h5>厌恶主导</h5>
+                <p class="cluster-desc">disgust 主导，常与 anger 混合出现</p>
+            </div>
+        </div>
+
+        <h3>t-SNE 可视化</h3>
+        <p class="section-desc" style="margin-top: -10px;">对 3000 个采样点进行 t-SNE 降维至 2 维，生成散点图可视化。颜色按 Ekman 6 类情绪或 27 类原始情绪着色。</p>
+
+        <div class="card">
+            <h4>&#128444; 可视化图表</h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-top: 16px;">
+                <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; text-align: center;">
+                    <div style="font-size: 3rem; margin-bottom: 8px;">&#128202;</div>
+                    <h5 style="margin-bottom: 6px;">tsne_tfidf_kmeans_k6_ekman.pdf</h5>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary);">TF-IDF + K-Means K=6<br>按 Ekman 6 类着色</p>
+                </div>
+                <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; text-align: center;">
+                    <div style="font-size: 3rem; margin-bottom: 8px;">&#128202;</div>
+                    <h5 style="margin-bottom: 6px;">tsne_tfidf_by_ekman.pdf</h5>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary);">TF-IDF t-SNE<br>按 Ekman 6 类真实标签着色</p>
+                </div>
+                <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; text-align: center;">
+                    <div style="font-size: 3rem; margin-bottom: 8px;">&#128202;</div>
+                    <h5 style="margin-bottom: 6px;">tsne_tfidf_by_emotion27.pdf</h5>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary);">TF-IDF t-SNE<br>按 27 类原始情绪着色</p>
+                </div>
+                <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; text-align: center;">
+                    <div style="font-size: 3rem; margin-bottom: 8px;">&#128202;</div>
+                    <h5 style="margin-bottom: 6px;">tsne_w2v_by_ekman.pdf</h5>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary);">Word2Vec t-SNE<br>按 Ekman 6 类真实标签着色</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <hr>
+
+    <!-- ── 7. Supervised Learning ── -->
+    <section id="supervised">
+        <h2><span class="num">7</span> 监督学习实验</h2>
+        <p class="section-desc">使用 Logistic Regression 在 TF-IDF 特征上训练 27 类情绪分类器，并评估分类性能。</p>
+
+        <div class="card">
+            <h4>&#9889; 模型配置</h4>
+            <div class="code-block">
+clf = <span class="fn">LogisticRegression</span>(
+    max_iter=<span class="num">1000</span>,
+    C=<span class="num">1.0</span>,
+    random_state=<span class="num">42</span>,
+    n_jobs=-<span class="num">1</span>
+)
+            </div>
+        </div>
+
+        <div class="card">
+            <h4>&#128200; 输出图表</h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-top: 14px;">
+                <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 10px; padding: 18px;">
+                    <h5 style="margin-bottom: 8px;">混淆矩阵</h5>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary);">confusion_matrix_27.pdf<br>展示 27 类分类的真实标签与预测标签交叉情况</p>
+                </div>
+                <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 10px; padding: 18px;">
+                    <h5 style="margin-bottom: 8px;">分类报告</h5>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary);">tables/classification_report.xlsx<br>Precision、Recall、F1 per class</p>
+                </div>
+                <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 10px; padding: 18px;">
+                    <h5 style="margin-bottom: 8px;">K 值选择曲线</h5>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary);">k_selection_tfidf.pdf<br>轮廓系数 & CH 指数随 K 变化曲线</p>
+                </div>
+            </div>
+        </div>
+
+        <h3>K 值选择分析</h3>
+        <p class="section-desc" style="margin-top: -10px;">对 K=3 到 K=15 进行轮廓系数和 CH 指数评估，找到最优聚类数。</p>
+        <div class="card">
+            <h4>&#128269; 最优 K 分析</h4>
+            <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 14px;">
+                通过轮廓系数（Silhouette Score）曲线，可以观察到不同特征提取方法下的最优 K 值。
+                TF-IDF 方法下 K=6 附近轮廓系数通常较高，表明 6 类聚类结构较清晰；
+                而 K=27 时由于类别过多，轮廓系数下降，但 CH 指数仍保持较高水平。
+            </p>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+                <div class="stat-card blue">
+                    <div class="value">~6–8</div>
+                    <div class="label">TF-IDF 最优 K 区间</div>
+                </div>
+                <div class="stat-card green">
+                    <div class="value">~8–12</div>
+                    <div class="label">Word2Vec 最优 K 区间</div>
+                </div>
+                <div class="stat-card orange">
+                    <div class="value">6</div>
+                    <div class="label">Ekman 理论 K 值</div>
+                </div>
+                <div class="stat-card red">
+                    <div class="value">27</div>
+                    <div class="label">实际情绪类别数</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <hr>
+
+    <!-- ── 8. Emotion Words ── -->
+    <section id="words">
+        <h2><span class="num">8</span> 情感词汇分析</h2>
+        <p class="section-desc">通过 Log Odds Ratio 计算每个情绪最具代表性的特征词，这些词在该情绪中出现频率显著高于其他情绪。</p>
+
+        <details open>
+            <summary><span class="tag tag-joy" style="font-size: 0.78rem;">Joy 喜悦</span> joy, happy, glad, love, fun, enjoy</summary>
+            <div class="detail-body">
+                <p style="margin-bottom: 10px;">Log Odds Ratio 最高的词（odds 值）：</p>
+                <div class="word-list">
+                    <span class="word-chip">love <span class="odds">75.16</span></span>
+                    <span class="word-chip">happy <span class="odds">30.85</span></span>
+                    <span class="word-chip">glad <span class="odds">26.28</span></span>
+                    <span class="word-chip">enjoy <span class="odds">19.10</span></span>
+                    <span class="word-chip">fun <span class="odds">11.36</span></span>
+                    <span class="word-chip">joy <span class="odds">7.47</span></span>
+                    <span class="word-chip">smile <span class="odds">4.97</span></span>
+                    <span class="word-chip">happiness <span class="odds">3.95</span></span>
+                </div>
+            </div>
+        </details>
+
+        <details>
+            <summary><span class="tag tag-anger" style="font-size: 0.78rem;">Anger 愤怒</span> anger, hate, fuck, stupid, idiot, annoyed</summary>
+            <div class="detail-body">
+                <p style="margin-bottom: 10px;">Log Odds Ratio 最高的词（odds 值）：</p>
+                <div class="word-list">
+                    <span class="word-chip">fuck <span class="odds">23.22</span></span>
+                    <span class="word-chip">hate <span class="odds">17.37</span></span>
+                    <span class="word-chip">angry <span class="odds">10.82</span></span>
+                    <span class="word-chip">dare <span class="odds">10.25</span></span>
+                    <span class="word-chip">stupid <span class="odds">7.21</span></span>
+                    <span class="word-chip">hell <span class="odds">6.67</span></span>
+                    <span class="word-chip">idiot <span class="odds">6.37</span></span>
+                    <span class="word-chip">wtf <span class="odds">5.47</span></span>
+                </div>
+            </div>
+        </details>
+
+        <details>
+            <summary><span class="tag tag-sadness" style="font-size: 0.78rem;">Sadness 悲伤</span> sadness, sorry, crying, miss, painful, heartbreaking</summary>
+            <div class="detail-body">
+                <p style="margin-bottom: 10px;">Log Odds Ratio 最高的词（odds 值）：</p>
+                <div class="word-list">
+                    <span class="word-chip">sad <span class="odds">30.33</span></span>
+                    <span class="word-chip">sadly <span class="odds">15.25</span></span>
+                    <span class="word-chip">sorry <span class="odds">15.10</span></span>
+                    <span class="word-chip">painful <span class="odds">9.70</span></span>
+                    <span class="word-chip">hurts <span class="odds">9.21</span></span>
+                    <span class="word-chip">crying <span class="odds">8.93</span></span>
+                    <span class="word-chip">miss <span class="odds">8.24</span></span>
+                    <span class="word-chip">heartbreaking <span class="odds">6.92</span></span>
+                </div>
+            </div>
+        </details>
+
+        <details>
+            <summary><span class="tag" style="font-size: 0.78rem; background: rgba(243,156,18,0.15); color: #F39C12; border: 1px solid rgba(243,156,18,0.3);">Gratitude 感激</span> gratitude, thanks, thank, appreciate, helpful</summary>
+            <div class="detail-body">
+                <p style="margin-bottom: 10px;">Log Odds Ratio 最高的词（odds 值）：</p>
+                <div class="word-list">
+                    <span class="word-chip">thanks <span class="odds">74.75</span></span>
+                    <span class="word-chip">thank <span class="odds">68.29</span></span>
+                    <span class="word-chip">for <span class="odds">23.36</span></span>
+                    <span class="word-chip">you <span class="odds">17.36</span></span>
+                    <span class="word-chip">sharing <span class="odds">16.98</span></span>
+                    <span class="word-chip">appreciate <span class="odds">15.25</span></span>
+                    <span class="word-chip">welcome <span class="odds">11.95</span></span>
+                    <span class="word-chip">congrats <span class="odds">10.95</span></span>
+                </div>
+            </div>
+        </details>
+
+        <details>
+            <summary><span class="tag" style="font-size: 0.78rem; background: rgba(63,185,80,0.15); color: #3fb950; border: 1px solid rgba(63,185,80,0.3);">Amusement 娱乐</span> lol, haha, funny, lmao, hilarious, joke</summary>
+            <div class="detail-body">
+                <p style="margin-bottom: 10px;">Log Odds Ratio 最高的词（odds 值）：</p>
+                <div class="word-list">
+                    <span class="word-chip">lol <span class="odds">65.47</span></span>
+                    <span class="word-chip">haha <span class="odds">32.19</span></span>
+                    <span class="word-chip">funny <span class="odds">26.68</span></span>
+                    <span class="word-chip">lmao <span class="odds">20.18</span></span>
+                    <span class="word-chip">hilarious <span class="odds">18.42</span></span>
+                    <span class="word-chip">fun <span class="odds">16.92</span></span>
+                    <span class="word-chip">laugh <span class="odds">14.26</span></span>
+                    <span class="word-chip">joke <span class="odds">12.25</span></span>
+                </div>
+            </div>
+        </details>
+
+        <details>
+            <summary><span class="tag tag-ambiguous" style="font-size: 0.78rem;">Surprise 惊讶</span> wow, surprised, shocked, omg, shocking</summary>
+            <div class="detail-body">
+                <p style="margin-bottom: 10px;">Log Odds Ratio 最高的词（odds 值）：</p>
+                <div class="word-list">
+                    <span class="word-chip">wow <span class="odds">21.40</span></span>
+                    <span class="word-chip">surprised <span class="odds">21.16</span></span>
+                    <span class="word-chip">wonder <span class="odds">14.38</span></span>
+                    <span class="word-chip">shocked <span class="odds">12.20</span></span>
+                    <span class="word-chip">omg <span class="odds">10.45</span></span>
+                    <span class="word-chip">surprising <span class="odds">6.24</span></span>
+                    <span class="word-chip">unexpected <span class="odds">5.71</span></span>
+                    <span class="word-chip">shocking <span class="odds">5.88</span></span>
+                </div>
+            </div>
+        </details>
+
+        <details>
+            <summary><span class="tag tag-negative" style="font-size: 0.78rem;">Remorse 愧疚</span> sorry, regret, apologize, guilt, guilty</summary>
+            <div class="detail-body">
+                <p style="margin-bottom: 10px;">Log Odds Ratio 最高的词（odds 值）：</p>
+                <div class="word-list">
+                    <span class="word-chip">sorry <span class="odds">37.65</span></span>
+                    <span class="word-chip">regret <span class="odds">8.80</span></span>
+                    <span class="word-chip">apologies <span class="odds">6.71</span></span>
+                    <span class="word-chip">apologize <span class="odds">5.81</span></span>
+                    <span class="word-chip">guilt <span class="odds">4.45</span></span>
+                    <span class="word-chip">guilty <span class="odds">3.92</span></span>
+                </div>
+            </div>
+        </details>
+    </section>
+
+    <hr>
+
+    <!-- ── 9. Key Findings ── -->
+    <section id="findings">
+        <h2><span class="num">9</span> 关键发现与结论</h2>
+        <p class="section-desc">综合分析结果，总结以下主要发现：</p>
+
+        <div class="finding-card">
+            <h5>&#128269; 发现 1：TF-IDF 特征表现优于 Word2Vec</h5>
+            <p>TF-IDF + SVD 降维后的聚类轮廓系数和 CH 指数均高于 Word2Vec 方法，表明在细粒度情绪分类任务中，词频统计特征比分布式语义表示更具区分性。这可能是因为情绪文本中关键词（如 "lol"、"hate"、"sorry"）具有强烈指向性。</p>
+        </div>
+
+        <div class="finding-card">
+            <h5>&#128202; 发现 2：K=6 聚类与 Ekman 框架部分对齐</h5>
+            <p>K=6 时 K-Means 聚类与 Ekman 6 类情绪有一定对齐（ARI ≈ 0.10–0.30），但对齐程度有限。Joy 类（12 种细粒度情绪合并）聚类效果最明显，而 Disgust 和 Fear 由于样本量较少，聚类边界较为模糊。</p>
+        </div>
+
+        <div class="finding-card">
+            <h5>&#9889; 发现 3：27 类情绪不能完全简化为 6 类</h5>
+            <p>Logistic Regression 在 27 类分类任务中可达到一定准确率，说明 27 类细粒度情绪之间存在有意义的语义差异。简单地将 27 类压缩为 6 类会丢失重要信息，例如 amusement（娱乐）与 joy（喜悦）在词向量空间中存在明显距离。</p>
+        </div>
+
+        <div class="finding-card">
+            <h5>&#128172; 发现 4：情感词汇具有强指示性</h5>
+            <p>Log Odds Ratio 分析显示，每个情绪类别都有高度特异性的关键词。例如 gratitude 类中 "thanks"（odds=74.75）远超其他词，amusement 类中 "lol"（odds=65.47）同样。这些强指示词可作为轻量级情绪分类器的核心特征。</p>
+        </div>
+
+        <div class="finding-card">
+            <h5>&#127919; 发现 5：t-SNE 可视化揭示情绪连续性</h5>
+            <p>t-SNE 散点图显示，27 类情绪并非离散分布，而是形成连续的语义空间。相邻情绪（如 joy-admiration、anger-annoyance）在降维空间中明显重叠，验证了情绪的维度性假设。</p>
+        </div>
+
+        <div class="finding-card">
+            <h5>&#128640; 发现 6：层次聚类与 K-Means 互补</h5>
+            <p>层次聚类（Ward 方法）在相同 K 值下轮廓系数与 K-Means 相近，但层次结构揭示了情绪之间的嵌套关系。例如 joy 类情绪（admiration, amusement, excitement）在层次树中首先合并为一个子分支。</p>
+        </div>
+
+        <h3 style="margin-top: 36px;">&#128173; 讨论与展望</h3>
+        <div class="card">
+            <h4>&#128172; 为什么 K=6 与 Ekman 对齐有限？</h4>
+            <p style="font-size: 0.88rem; color: var(--text-secondary);">
+                Ekman 的 6 类情绪基于面部表情研究提出，主要针对基本情绪。而 GoEmotions 的 27 类情绪来源于自然语言，包含更多社交情绪（如 approval、caring、remorse），这些在 Ekman 框架中没有对应类别。因此，简单用 K=6 聚合并不能完全捕捉 27 类情绪的语义结构。
+            </p>
+        </div>
+        <div class="card">
+            <h4>&#128640; 改进方向</h4>
+            <ul style="padding-left: 20px; color: var(--text-secondary); font-size: 0.88rem; line-height: 2;">
+                <li>引入 BERT 等预训练语言模型（如 RoBERTa）提取上下文感知的文本表示</li>
+                <li>使用多标签分类（Multi-label Classification）代替多类分类，因为一条评论可表达多种情绪</li>
+                <li>探索更多聚类算法（如 DBSCAN、HDBSCAN）以发现非球形簇</li>
+                <li>结合情感极性作为层次聚类的先验约束</li>
+                <li>分析不同 Reddit 子话题（subreddit）之间的情绪分布差异</li>
+            </ul>
+        </div>
+    </section>
+
+    <hr>
+
+    <!-- ── 10. Output Files ── -->
+    <section id="outputs">
+        <h2><span class="num">10</span> 输出文件清单</h2>
+        <p class="section-desc">所有图表和表格文件保存位置：<code>plots/</code> 和 <code>tables/</code></p>
+
+        <h3>图表文件（plots/）</h3>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>文件名</th>
+                        <th>说明</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td class="mono">tsne_tfidf_kmeans_k6_ekman.pdf</td><td>TF-IDF + K-Means K=6 t-SNE（Ekman 着色）</td></tr>
+                    <tr><td class="mono">tsne_tfidf_by_ekman.pdf</td><td>TF-IDF t-SNE（按 Ekman 6 类着色）</td></tr>
+                    <tr><td class="mono">tsne_tfidf_by_emotion27.pdf</td><td>TF-IDF t-SNE（按 27 类情绪着色）</td></tr>
+                    <tr><td class="mono">tsne_w2v_by_ekman.pdf</td><td>Word2Vec t-SNE（按 Ekman 6 类着色）</td></tr>
+                    <tr><td class="mono">tsne_w2v_by_emotion27.pdf</td><td>Word2Vec t-SNE（按 27 类情绪着色）</td></tr>
+                    <tr><td class="mono">k_selection_tfidf.pdf</td><td>TF-IDF 轮廓系数 & CH 指数曲线</td></tr>
+                    <tr><td class="mono">k_selection_w2v.pdf</td><td>Word2Vec 轮廓系数 & CH 指数曲线</td></tr>
+                    <tr><td class="mono">confusion_matrix_27.pdf</td><td>27 类分类混淆矩阵热力图</td></tr>
+                    <tr><td class="mono">svd_variance.pdf</td><td>SVD 方差解释比例图</td></tr>
+                    <tr><td class="mono">emotion_distribution.pdf</td><td>27 类情绪分布柱状图</td></tr>
+                    <tr><td class="mono">cluster_ekman_heatmap_*.pdf</td><td>聚类与 Ekman 标签交叉热力图</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h3>表格文件（tables/）</h3>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>文件名</th>
+                        <th>说明</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td class="mono">classification_report.xlsx</td><td>27 类分类的 Precision/Recall/F1 报告</td></tr>
+                    <tr><td class="mono">k_scores_tfidf.xlsx</td><td>TF-IDF K=3~15 轮廓系数 & CH 指数</td></tr>
+                    <tr><td class="mono">k_scores_w2v.xlsx</td><td>Word2Vec K=3~15 轮廓系数 & CH 指数</td></tr>
+                    <tr><td class="mono">clustering_summary.xlsx</td><td>所有特征+K 组合的聚类质量汇总</td></tr>
+                    <tr><td class="mono">emotion_words.csv</td><td>各情绪类别的显著关联词及 Log Odds Ratio</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+</div>
+
+<!-- ── Footer ── -->
+<footer>
+    <p>
+        GoEmotions 情绪分类分析报告 &mdash; 基于
+        <a href="https://arxiv.org/abs/2005.00547" target="_blank">GoEmotions Dataset (ACL 2020)</a>
+    </p>
+    <p style="margin-top: 8px;">
+        技术栈：Python &middot; scikit-learn &middot; Gensim &middot; Matplotlib &middot; Seaborn
+    </p>
+</footer>
+
+<script>
+    // Smooth scroll + active nav
+    const navLinks = document.querySelectorAll('nav a');
+    const sections = document.querySelectorAll('section[id]');
+
+    window.addEventListener('scroll', () => {
+        let current = '';
+        sections.forEach(section => {
+            const top = section.offsetTop - 80;
+            if (scrollY >= top) current = section.getAttribute('id');
+        });
+        navLinks.forEach(a => {
+            a.classList.remove('active');
+            if (a.getAttribute('href') === '#' + current) a.classList.add('active');
+        });
+    });
+
+    navLinks.forEach(a => {
+        a.addEventListener('click', e => {
+            e.preventDefault();
+            const target = document.querySelector(a.getAttribute('href'));
+            if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    });
+</script>
+
+</body>
+</html>
